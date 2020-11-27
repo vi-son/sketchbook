@@ -1,6 +1,13 @@
 # vi.son Sketchbook
 ### Audiovisual Sketches for [mixing-senses.art](https://www.mixing-senses.art)
 
+<div>
+   <img align="center" width="30%" height="auto" src="https://mixing-senses.art/media/pages/home/4d436e67e1-1606044368/2020-07-19-14-19-momentum-005-1024x.png">
+   <img align="center" width="30%" height="auto" src="https://mixing-senses.art/media/pages/home/87018f2df6-1606044367/0015-1024x.png">
+   <img align="center" width="30%" height="auto" src="https://mixing-senses.art/media/pages/home/8fe6e90dee-1606044367/0028-1024x.png">
+</div>
+
+
 #### Touchdesigner
 1. Download [Touchplayer](https://derivative.ca/UserGuide/TouchPlayer)
 2. Install Touchplayer. Follow the instructions over at
