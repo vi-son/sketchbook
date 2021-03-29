@@ -47,14 +47,14 @@ void main() {
 
   // Polar coordinates for sampling
   vec2 x = uv - vec2(0.5);
-  float radius = length(x);
+  float radius = 1.0 - (length(x) + fract(uTime));
   float angle = atan(x.y, x.x);
   // the new polar texcoords
   vec2 tc_polar; 
   // map radius so that for r=r_inner -> 0 and r=r_outer -> 1
   tc_polar.s = (radius - r_inner) / (r_outer - r_inner);
   // map angle from [-PI,PI] to [0,1]
-  tc_polar.t = angle * 0.2 / PI + 0.5;
+  tc_polar.t = (angle * 0.2 / PI + 0.5);
   tc_polar.st = tc_polar.ts;
 
   // audioData.r *= smooth_circle;
@@ -150,21 +150,23 @@ void main() {
   //   newState.b = texture2D(uAudioTexture, uv).r;
   // }
 
+  vec2 uvs = (uv - vec2(0.5)) * 0.975 + 0.5;
+  vec4 oldState = texture2D(uTexture, uvs);
+  newState.b += oldState.b * 0.995;
 
-  vec4 oldState = texture2D(uTexture, uv);
-  newState.b += oldState.b * 0.88;
+  newState *= 0.98;
 
   float audioSpectrum = texture2D(uAudioTexture, tc_polar).r;
 
   // Create a smoothed circle mask
-  vec2 uvc = uv - vec2(0.5);
+  vec2 uvc = (uv - vec2(0.5)) * 1.5;
   float d = sqrt(dot(uvc, uvc));
   float t = 1.0 - smoothstep(0.0, 1.0, d);
-  float smooth_circle = 1.0 - smoothstep(0.0, pow(audioSpectrum, 5.0) * 0.6, d);
+  float smooth_circle = 1.0 - smoothstep(0.0, pow(audioSpectrum, 5.0) * 0.2, d);
 
-  newState.b += smooth_circle * audioSpectrum;
+  newState.b += (smooth_circle * audioSpectrum) * 0.2;
+  newState.b -= smooth_circle * 0.1;
 
-  newState.b -= audioSpectrum * 0.15;
-
-  gl_FragColor = vec4(vec3(newState.b), 1.0);
+  vec3 out_color = vec3(newState.b);
+  gl_FragColor = vec4(out_color, 1.0);
 }
