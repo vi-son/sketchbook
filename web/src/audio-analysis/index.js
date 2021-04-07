@@ -62,7 +62,7 @@ const renderTargets = [0, 1].map(
     })
 );
 
-var camera = new THREE.OrthographicCamera(
+const camera = new THREE.OrthographicCamera(
   -2 / size.width,
   +2 / size.width,
   +2 / size.width,

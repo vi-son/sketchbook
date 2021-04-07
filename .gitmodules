@@ -1,0 +1,3 @@
+[submodule "web/src/glsl/shader-library"]
+	path = web/src/glsl/shader-library
+	url = git@github.com:guidoschmidt/shader-library.git
