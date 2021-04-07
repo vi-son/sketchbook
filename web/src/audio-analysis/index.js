@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
+import PoissonDiskSampling from "poisson-disk-sampling";
 
 // Shader
 const vertexShader = require("./glsl/basic.vert.glsl");
@@ -16,7 +17,7 @@ const listener = new THREE.AudioListener();
 const sound = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 audioLoader.load(
-  "/patterns_20200628.mp3",
+  "/logo.exhibition.20201121.mp3",
   (buffer) => {
     sound.setBuffer(buffer);
     sound.setLoop(true);
@@ -108,6 +109,7 @@ const audioDataRenderTarget = new THREE.WebGLRenderTarget(
     type: THREE.FloatType,
   }
 );
+console.log("Render Target Size", audioDataRenderTarget);
 const audioDataMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uFrame: { value: 0 },

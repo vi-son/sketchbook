@@ -17,6 +17,25 @@ uniform sampler2D uAudioTexture;
 
 varying vec2 vUv;
 
+float rand(vec2 n) { 
+	return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+vec3 pillow(in vec3 color_a, in vec3 color_b, in vec2 gamma, in vec2 uv)
+{
+  vec3 color = vec3(0.0);
+  color.xy =
+    (uv.st * 2.0 - vec2(1.0)) * 0.5 * vec2(-1, 1) * // x
+    (uv.st * 2.0 - vec2(1.0)) * 0.5 * vec2(-1, 1) + 0.5; // y
+
+  float fade =
+    pow(smoothstep(-1.0, 1.0, 1.0 - 0.5 * (color.x - 0.5)), pow(2.0, gamma.x)) *
+    pow(smoothstep(-1.0, 1.0, 1.0 - 0.5 * (color.y - 0.5)), pow(2.0, gamma.y));
+
+  color = mix(color_a, color_b, fade);
+  return color;
+}
+
 float circle(in vec2 uv, in vec2 position, in float radius) {
   vec2 d = uv - position;
   return 1.0 - smoothstep(radius - (radius * 0.01),
@@ -25,8 +44,12 @@ float circle(in vec2 uv, in vec2 position, in float radius) {
 }
 
 void main() {
-  vec2 uv = vUv;
-  vec4 ad = texture2D(uAudioTexture, uv);
+  vec2 uv = gl_FragCoord.xy;
+  vec4 ad = texture2D(uAudioTexture, uv / uResolution);
+
+  vec3 color_a = vec3(1, 0, 0);
+  vec3 color_b = vec3(0, 1, 0.5);
+  vec3 color_c = vec3(1, 1, 0);
 
   // float radius = 0.75;
   // float angle = 3.14159 * 0.2 * ad.r;
@@ -43,19 +66,18 @@ void main() {
   // }
 
   float r_inner = 0.5; 
-  float r_outer = 0.7; 
+  float r_outer = 0.7;
 
   // Polar coordinates for sampling
-  vec2 x = uv - vec2(0.5);
-  float radius = 1.0 - (length(x) + fract(uTime));
+  vec2 x = uv / uResolution - vec2(0.5, 0.5);
+  float radius = 1.0 - (length(x) + fract(uTime * (length(x) * 100.0)));
   float angle = atan(x.y, x.x);
   // the new polar texcoords
   vec2 tc_polar; 
   // map radius so that for r=r_inner -> 0 and r=r_outer -> 1
-  tc_polar.s = (radius - r_inner) / (r_outer - r_inner);
+  tc_polar.t = (radius - r_inner) / (r_outer - r_inner);
   // map angle from [-PI,PI] to [0,1]
-  tc_polar.t = (angle * 0.2 / PI + 0.5);
-  tc_polar.st = tc_polar.ts;
+  tc_polar.s = (angle * 0.2 / PI + 0.49);
 
   // audioData.r *= smooth_circle;
 
@@ -65,10 +87,10 @@ void main() {
   //
   // Reaction diffusion
   //
-  float diffusionRateA = uDiffusionSettings.x;
-  float diffusionRateB = uDiffusionSettings.y;
-  float feedRate = uDiffusionSettings.z;
-  float killRate = uDiffusionSettings.w;
+  // float diffusionRateA = uDiffusionSettings.x;
+  // float diffusionRateB = uDiffusionSettings.y;
+  // float feedRate = uDiffusionSettings.z;
+  // float killRate = uDiffusionSettings.w;
 
   // feedRate += (audioData.r - 0.5) / 500.0;
   // feedRate += smoothstep(0.0, 0.6, d) * audioData.r / 700.0;
@@ -150,23 +172,44 @@ void main() {
   //   newState.b = texture2D(uAudioTexture, uv).r;
   // }
 
-  vec2 uvs = (uv - vec2(0.5)) * 0.975 + 0.5;
+  vec2 uvs = (uv / uResolution - vec2(0.5)) * 0.975 + 0.5;
   vec4 oldState = texture2D(uTexture, uvs);
-  newState.b += oldState.b * 0.995;
+  newState.a += oldState.a * 0.995;
 
-  newState *= 0.98;
+  newState *= 0.95;
 
   float audioSpectrum = texture2D(uAudioTexture, tc_polar).r;
 
   // Create a smoothed circle mask
-  vec2 uvc = (uv - vec2(0.5)) * 1.5;
-  float d = sqrt(dot(uvc, uvc));
-  float t = 1.0 - smoothstep(0.0, 1.0, d);
-  float smooth_circle = 1.0 - smoothstep(0.0, pow(audioSpectrum, 5.0) * 0.2, d);
+  // vec2 uvc = (uv - vec2(0.5));
+  // float d = sqrt(dot(uvc, uvc));
+  vec2 center = (uResolution * 0.5);
+  float d = length(center - uv) - 50.0;
+  float di = length(center - uv) - 30.0;
+  float t = 1.0 - (smoothstep(0.0, 1.0, d / uResolution.y));
+  float smooth_circle = 1.0 - smoothstep(0.0, pow(audioSpectrum, 5.0) * 0.5, d / uResolution.y);
 
-  newState.b += (smooth_circle * audioSpectrum) * 0.2;
-  newState.b -= smooth_circle * 0.1;
+  newState.a += (smooth_circle * audioSpectrum) * 0.2;
 
-  vec3 out_color = vec3(newState.b);
-  gl_FragColor = vec4(out_color, 1.0);
+  float center_circle = clamp(smoothstep(0.0, pow(audioSpectrum, 10.0) * 0.5, di / uResolution.y), 0.0, 1.0);
+  newState.a *= pow(center_circle, 10.0);
+
+  // Background color
+  vec3 color_bga = vec3(13, 39, 136) / 255.0;
+  vec3 color_bgb = vec3(55, 39, 215) / 255.0;
+  vec2 gamma = vec2(6.0);
+  vec3 color_background = pillow(color_bga, color_bgb, gamma, uv / uResolution).rgb + rand(uv * 100.0) / 100.0;
+
+  vec3 color_start = mix(color_a, color_b, sin((tc_polar.s * 3.25 * PI) + PI / 1.75));
+  vec3 color_mixed = mix(color_start, color_c, cos((tc_polar.s * 5.5 * PI) + PI / 13.0));
+  vec3 out_color = mix(color_background, color_mixed , pow(newState.a, 0.25));
+
+  // Grain
+  // float amount = 0.5;
+  // vec2 uvRandom = uv;
+  // uvRandom.y *= grain(vec2(uvRandom.y, amount));
+  // color.rgb += grain(uvRandom) * 0.05;
+
+  gl_FragColor = vec4(out_color, clamp(newState.a, 0.0, 1.0));
+  // gl_FragColor = vec4(vec3(center_circle), clamp(newState.a, 0.0, 1.0));
 }
