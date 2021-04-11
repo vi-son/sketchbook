@@ -17,7 +17,7 @@ const listener = new THREE.AudioListener();
 const sound = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader();
 audioLoader.load(
-  "/logo.exhibition.20201121.mp3",
+  "/audio/Interlude.01_20200705.mp3",
   (buffer) => {
     sound.setBuffer(buffer);
     sound.setLoop(true);
@@ -29,7 +29,8 @@ audioLoader.load(
     console.error(err);
   }
 );
-const audioAnalyser = new THREE.AudioAnalyser(sound, 128);
+const spectrumSize = 128;
+const audioAnalyser = new THREE.AudioAnalyser(sound, spectrumSize);
 
 const stats = new Stats();
 document.body.appendChild(stats.dom);
@@ -45,6 +46,7 @@ var renderer = new THREE.WebGLRenderer({
   canvas: document.querySelector("#canvas"),
   antialias: true,
 });
+const gl = renderer.getContext();
 renderer.setSize(size.width, size.height);
 renderer.setClearColor(0x9d9d94, 1.0);
 renderer.setPixelRatio(pixelRatio);
@@ -52,11 +54,11 @@ const renderTargetSize = new THREE.Vector2(size.width, size.height);
 const renderTargets = [0, 1].map(
   () =>
     new THREE.WebGLRenderTarget(renderTargetSize.x, renderTargetSize.y, {
-      // wrapS: THREE.RepeatWrapping,
-      // wrapT: THREE.RepeatWrapping,
+      wrapS: THREE.RepeatWrapping,
+      wrapT: THREE.RepeatWrapping,
       // minFilter: THREE.NearestFilter,
       // magFilter: THREE.NearestFilter,
-      format: THREE.RGBFormat,
+      format: THREE.RGBAFormat,
       type: THREE.FloatType,
       stencilBuffer: false,
     })
@@ -102,21 +104,23 @@ window.addEventListener("pointerup", () => {
 
 const planeGeometry = new THREE.PlaneGeometry(2, 2);
 
-const audioDataRenderTarget = new THREE.WebGLRenderTarget(
-  size.width,
-  size.height,
-  {
-    type: THREE.FloatType,
-  }
-);
+const audioDataRenderTarget = new THREE.WebGLRenderTarget(spectrumSize / 2, 1, {
+  type: THREE.FloatType,
+  wrapS: THREE.RepeatWrapping,
+  wrapT: THREE.RepeatWrapping,
+  minFilter: THREE.NearestFilter,
+  magFilter: THREE.NearestFilter,
+});
 console.log("Render Target Size", audioDataRenderTarget);
 const audioDataMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uFrame: { value: 0 },
+    uTime: { value: 0 },
+    uAudioTexture: { value: audioTexture },
     uFrequencies: { value: [] },
     uAverageFrequency: { value: 0.0 },
     uResolution: {
-      value: new THREE.Vector2(size.width, size.height),
+      value: new THREE.Vector2(spectrumSize / 2, 1),
     },
   },
   vertexShader: vertexShader,
@@ -167,52 +171,84 @@ let frameCount = 0;
 let uFrameCounter = 0;
 
 let averageFreqData = 0;
-let freqData = [];
+let freqData = audioAnalyser.getFrequencyData();
+console.log("Spectrum Size: ", freqData.length);
+
+// Audio texture
+const width = spectrumSize / 2.0;
+const height = 1;
+
+const textureSize = width * height;
+const data = new Uint8Array(3 * textureSize);
+const r = Math.floor(Math.random() * 255);
+const g = Math.floor(Math.random() * 255);
+const b = Math.floor(Math.random() * 255);
+for (let i = 0; i < textureSize; i++) {
+  const stride = i * 3;
+  data[stride] = freqData[i];
+  data[stride + 1] = 0;
+  data[stride + 2] = 0;
+}
+const audioTexture = new THREE.DataTexture(
+  data,
+  width,
+  height,
+  THREE.RGBFormat
+);
 
 function renderLoop() {
-  for (let i = 0; i < 5; i++) {
-    averageFreqData = audioAnalyser.getAverageFrequency();
-    freqData = audioAnalyser.getFrequencyData();
+  // for (let i = 0; i < 5; i++) {
+  averageFreqData = audioAnalyser.getAverageFrequency();
+  freqData = audioAnalyser.getFrequencyData();
 
-    // Render audio data
-    audioDataMaterial.uniforms.uAverageFrequency.value = averageFreqData;
-    audioDataMaterial.uniforms.uFrequencies.value = freqData;
-    audioDataMaterial.uniforms.uFrame.value = uFrameCounter;
-
-    renderer.setRenderTarget(audioDataRenderTarget);
-    renderer.render(audioScene, camera);
-    renderer.setRenderTarget(null);
-
-    // Update uniforms
-    feedbackMaterial.uniforms.uFrame.value = uFrameCounter;
-    feedbackMaterial.uniforms.uTime.value = clock.getElapsedTime();
-    feedbackMaterial.uniforms.uMouse.value.set(
-      mousePosition.x,
-      mousePosition.y,
-      mouseDown
-    );
-    feedbackMaterial.uniforms.uAudioTexture.value =
-      audioDataRenderTarget.texture;
-
-    // 1. Render off screen
-    renderer.setRenderTarget(renderTargets[(frameCount + 1) % 2]);
-    renderer.render(offscreenScene, camera);
-    renderer.setRenderTarget(null);
-
-    // 2. Render on screen
-    renderer.render(scene, camera);
-
-    // 3. Swap
-    if (frameCount % 2 === 0) {
-      pingPlane.material.uniforms.uTexture.value = renderTargets[1].texture;
-    } else {
-      pongPlane.material.uniforms.uTexture.value = renderTargets[0].texture;
-    }
-    frameCount++;
-    if (sound.isPlaying) {
-      uFrameCounter++;
-    }
+  for (let i = 0; i < textureSize; i++) {
+    const stride = i * 3;
+    data[stride] = freqData[i];
+    data[stride + 1] = 0;
+    data[stride + 2] = 0;
   }
+  audioTexture.needsUpdate = true;
+
+  // Render audio data
+  audioDataMaterial.uniforms.uAverageFrequency.value = averageFreqData;
+  audioDataMaterial.uniforms.uFrequencies.value = freqData;
+  audioDataMaterial.uniforms.uTime.value = clock.getElapsedTime();
+  audioDataMaterial.uniforms.uFrame.value = uFrameCounter;
+  audioDataMaterial.uniforms.uAudioTexture.value = audioTexture;
+
+  renderer.setRenderTarget(audioDataRenderTarget);
+  renderer.render(audioScene, camera);
+  renderer.setRenderTarget(null);
+
+  // Update uniforms
+  feedbackMaterial.uniforms.uFrame.value = uFrameCounter;
+  feedbackMaterial.uniforms.uTime.value = clock.getElapsedTime();
+  feedbackMaterial.uniforms.uMouse.value.set(
+    mousePosition.x,
+    mousePosition.y,
+    mouseDown
+  );
+  feedbackMaterial.uniforms.uAudioTexture.value = audioDataRenderTarget.texture;
+
+  // 1. Render off screen
+  renderer.setRenderTarget(renderTargets[(frameCount + 1) % 2]);
+  renderer.render(offscreenScene, camera);
+  renderer.setRenderTarget(null);
+
+  // 2. Render on screen
+  renderer.render(scene, camera);
+
+  // 3. Swap
+  if (frameCount % 2 === 0) {
+    pingPlane.material.uniforms.uTexture.value = renderTargets[1].texture;
+  } else {
+    pongPlane.material.uniforms.uTexture.value = renderTargets[0].texture;
+  }
+  frameCount++;
+  if (sound.isPlaying) {
+    uFrameCounter++;
+  }
+  // }
 
   stats.update();
 }

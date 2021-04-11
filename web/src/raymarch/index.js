@@ -50,7 +50,7 @@ const raymarchMaterial = new THREE.ShaderMaterial({
     },
     uMatcap: {
       value: new THREE.TextureLoader().load(
-        "/textures/857B61_ACE5D4_593D28_5B4334.png"
+        "/textures/4a87c9b01dbe2d216f2906dfabf1e051.jpg"
       ),
     },
   },

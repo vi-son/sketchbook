@@ -43,10 +43,10 @@ renderer.setClearColor(0x9d9d94, 1.0);
 renderer.setPixelRatio(pixelRatio);
 
 const camera = new THREE.OrthographicCamera(
-  -1000000 / size.height,
-  +1000000 / size.height,
-  +1000000 / size.width,
-  -1000000 / size.width,
+  -500000 / size.height,
+  +500000 / size.height,
+  +500000 / size.width,
+  -500000 / size.width,
   -100,
   +100
 );
@@ -63,18 +63,17 @@ const p = new PoissonDiskSampling({
   tries: 10,
 });
 const points = p.fill();
-console.log(points);
 
 // Center
-const geometry = new THREE.CircleGeometry(radius / 2.0, 100);
+const geometry = new THREE.CircleGeometry(radius, 100);
 const dotMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const centerCircle = new THREE.Mesh(geometry, dotMaterial);
 scene.add(centerCircle);
 const outerCircles = [];
 // Outer dots
 for (var pt = 0; pt < points.length; pt++) {
-  var point = points[pt];
-  var angle = Math.atan2(
+  const point = points[pt];
+  const angle = Math.atan2(
     point[1] - poissonWidth / 2,
     point[0] - poissonWidth / 2
   );
@@ -83,17 +82,15 @@ for (var pt = 0; pt < points.length; pt++) {
   );
   const amp = Math.random() / 5.0;
   const energy = outerRadius * amp;
-  const distance = new THREE.Vector2(
-    poissonWidth / 2,
-    poissonWidth / 2
-  ).distanceTo(new THREE.Vector2(point[0], point[1]));
-  // if (distance > innerRadius * 40 || distance < circleCenterRadius) continue;
+  const distance = new THREE.Vector2(0, 0).distanceTo(
+    new THREE.Vector2(point[0] - poissonWidth / 2, point[1] - poissonWidth / 2)
+  );
   const wavePoint = new THREE.Vector2(
     (radius + energy) * Math.cos(angle),
     (radius + energy) * Math.sin(angle)
   );
   const distanceWavePoint = new THREE.Vector2(0, 0).distanceTo(wavePoint);
-  var distancePointToWavePoint = wavePoint.distanceTo(
+  const distancePointToWavePoint = wavePoint.distanceTo(
     new THREE.Vector2(point[0] - poissonWidth / 2, point[1] - poissonWidth / 2)
   );
   const circleRadius = remap(
@@ -101,16 +98,18 @@ for (var pt = 0; pt < points.length; pt++) {
     0.3,
     0.5,
     0,
-    innerRadius / 2000.0
+    innerRadius / 100.0
   );
-  if (distance > innerRadius * 15 || distance < circleCenterRadius * 8)
-    continue;
-  const geometry = new THREE.CircleGeometry(radius, 32);
-  geometry.scale(circleRadius, circleRadius, circleRadius);
+  const geometry = new THREE.CircleGeometry(circleRadius, 32);
+  if (distance > outerRadius || distance < innerRadius * 7.0) {
+    geometry.scale(0.0001, 0.0001, 1);
+  }
   const mesh = new THREE.Mesh(geometry, dotMaterial);
   mesh.position.set(point[0] - poissonWidth / 2, point[1] - poissonWidth / 2);
-  outerCircles.push(mesh);
-  scene.add(mesh);
+  if (mesh !== undefined) {
+    outerCircles.push(mesh);
+    scene.add(mesh);
+  }
 }
 
 const clock = new THREE.Clock(true);
@@ -140,13 +139,14 @@ function renderLoop() {
   );
 
   // Center circle
-  centerCircle.scale.set(
-    insideBreath + circleCenterRadius,
-    insideBreath + circleCenterRadius,
-    insideBreath + circleCenterRadius
-  );
+  // centerCircle.scale.set(
+  //   insideBreath + circleCenterRadius,
+  //   insideBreath + circleCenterRadius,
+  //   insideBreath + circleCenterRadius
+  // );
 
   // Small circles
+  /*
   const waveRadius = outerRadius;
   const outerCircleRadius = breath * waveRadius;
   for (let pt = 0; pt < points.length; pt++) {
@@ -162,9 +162,14 @@ function renderLoop() {
     const amp = freqData[spectralIndex] / 512;
     const energy = waveRadius * amp;
     const wavePoint = new THREE.Vector2(
-      (radius + energy) * Math.cos(angle),
-      (radius + energy) * Math.sin(angle)
+      (outerCircleRadius + energy) * Math.cos(angle),
+      (outerCircleRadius + energy) * Math.sin(angle)
     );
+    const distance = new THREE.Vector2(
+      poissonWidth / 2,
+      poissonWidth / 2
+    ).distanceTo(new THREE.Vector2(point[0], point[1]));
+
     const distanceWavePoint = new THREE.Vector2(0, 0).distanceTo(wavePoint);
     const distancePointToWavePoint = wavePoint.distanceTo(
       new THREE.Vector2(
@@ -177,11 +182,20 @@ function renderLoop() {
       0.3,
       0.5,
       0,
-      innerRadius
+      innerRadius / 3000.0
     );
     const outerCircle = outerCircles[pt];
-    // outerCircle.position.set(wavePoint.x, wavePoint.y, 0);
+    if (outerCircle !== undefined) {
+      const scale = Math.min(Math.max(0.0, Math.abs(circleRadius)), 0.1);
+      outerCircle.scale.set(scale, scale, 1);
+      outerCircle.position.set(
+        point[0] - poissonWidth / 2,
+        point[1] - poissonWidth / 2,
+        0
+      );
+    }
   }
+  */
 
   // Render
   renderer.render(scene, camera);
