@@ -2,6 +2,16 @@ import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import PoissonDiskSampling from "poisson-disk-sampling";
 
+const fftData = [];
+
+import ccapture from "ccapture.js";
+const capturer = new CCapture({
+  format: "png",
+  framerate: 60,
+  verbose: true,
+});
+let recording = false;
+
 // Shader
 const vertexShader = require("./glsl/basic.vert.glsl");
 
@@ -20,7 +30,7 @@ audioLoader.load(
   "/audio/Interlude.01_20200705.mp3",
   (buffer) => {
     sound.setBuffer(buffer);
-    sound.setLoop(true);
+    sound.setLoop(false);
     sound.setVolume(0.5);
     sound.play();
   },
@@ -29,13 +39,24 @@ audioLoader.load(
     console.error(err);
   }
 );
+
+// capturer.start();
+// recording = true;
+
+sound.onEnded = () => {
+  // capturer.stop();
+  // capturer.save();
+  // recording = false;
+};
+
 const spectrumSize = 128;
 const audioAnalyser = new THREE.AudioAnalyser(sound, spectrumSize);
 
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 
-const size = document.querySelector("#canvas").getBoundingClientRect();
+const canvas = document.querySelector("#canvas");
+let size = canvas.getBoundingClientRect();
 const pixelRatio = 1.0;
 
 var scene = new THREE.Scene();
@@ -56,6 +77,7 @@ const renderTargets = [0, 1].map(
     new THREE.WebGLRenderTarget(renderTargetSize.x, renderTargetSize.y, {
       wrapS: THREE.RepeatWrapping,
       wrapT: THREE.RepeatWrapping,
+      // @TODO use nearest filter
       // minFilter: THREE.NearestFilter,
       // magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
@@ -179,13 +201,10 @@ const width = spectrumSize / 2.0;
 const height = 1;
 
 const textureSize = width * height;
-const data = new Uint8Array(3 * textureSize);
-const r = Math.floor(Math.random() * 255);
-const g = Math.floor(Math.random() * 255);
-const b = Math.floor(Math.random() * 255);
+const data = new Float32Array(3 * textureSize);
 for (let i = 0; i < textureSize; i++) {
   const stride = i * 3;
-  data[stride] = freqData[i];
+  data[stride] = freqData[i] / 2500.0;
   data[stride + 1] = 0;
   data[stride + 2] = 0;
 }
@@ -195,15 +214,17 @@ const audioTexture = new THREE.DataTexture(
   height,
   THREE.RGBFormat
 );
+audioTexture.type = THREE.FloatType;
 
 function renderLoop() {
-  // for (let i = 0; i < 5; i++) {
   averageFreqData = audioAnalyser.getAverageFrequency();
   freqData = audioAnalyser.getFrequencyData();
 
+  fftData.push(freqData);
+
   for (let i = 0; i < textureSize; i++) {
     const stride = i * 3;
-    data[stride] = freqData[i];
+    data[stride] = freqData[i] / 255.0;
     data[stride + 1] = 0;
     data[stride + 2] = 0;
   }
@@ -248,7 +269,8 @@ function renderLoop() {
   if (sound.isPlaying) {
     uFrameCounter++;
   }
-  // }
+
+  if (recording) capturer.capture(canvas);
 
   stats.update();
 }

@@ -80,7 +80,7 @@ void main() {
   // Old state
   vec2 uvs = (uv / uResolution - vec2(0.5)) * 0.993 + 0.5;
   vec4 oldState = texture2D(uTexture, uvs + (grain(uvRandom) * 0.001) - 0.0005);
-  newState.a += oldState.a * 0.993;
+  newState.a += oldState.a * 0.973;
 
   newState *= 0.96;
 
@@ -102,6 +102,7 @@ void main() {
   vec3 color_bgb = vec3(55, 39, 215) / 255.0;
   vec2 gamma = vec2(6.0);
   vec3 color_background = pillow(color_bga, color_bgb, gamma, uv / uResolution).rgb + rand(uv * 100.0) / 100.0;
+  color_background += grain(uvRandom) * 0.01;
 
   tc_polar.s += grain(uv / uResolution.y) * 0.05 * (d / uResolution.y);
   vec3 color_start = mix(color_a, color_b, sin((tc_polar.s * 2.25 * PI) + PI / 8.65));
