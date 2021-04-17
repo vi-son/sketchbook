@@ -19,6 +19,7 @@ varying vec2 vUv;
 
 float circle(in vec2 uv, in vec2 position, in float radius) {
   vec2 d = uv - position;
+  d *= vec2(1.0, uResolution.y / uResolution.x);
   return 1.0 - smoothstep(radius - (radius * 0.9),
                           radius + (radius * 0.9),
                           dot(d, d) * 4.0);
@@ -57,8 +58,9 @@ float snoise(vec2 v){
 void main() {
   vec2 uv = vUv;
 
-  vec2 nuv = vec2(uv.x, uv.y + uTime / 50.0);
-  float simplex = snoise(nuv * vec2(uResolution.x, uResolution.y) * 0.075) * 0.5 + 0.5;
+  vec2 nuv = vec2(uv.x + uMouse.x + uTime * 0.1, uv.y + uMouse.y + uTime * 0.1);
+  float simplex = snoise(nuv * vec2(uResolution.x, uResolution.y) * 0.0075) * 0.5 + 0.5;
+  float simplex2 = snoise(uv * vec2(uResolution.x, uResolution.y) * 0.0075) * 0.5 + 0.5;
 
   float diffusionRateA = uDiffusionSettings.x;
   float diffusionRateB = uDiffusionSettings.y;
@@ -66,20 +68,19 @@ void main() {
   float killRate = uDiffusionSettings.w;
 
   // Reaction diffusion
-  vec2 uvos = vec2(uv.x + 0.00015 * simplex, uv.y + 0.00015 * simplex);
+  vec2 uvos = vec2(uv.x, uv.y);
   vec4 newState = vec4(0.0);
   vec4 oldState = texture2D(uTexture, uvos);
-  newState.b = oldState.b * 0.998;
+  newState.b = oldState.b * 0.98;
 
-  // newState.a = oldState.a * 0.9998;
-  newState.a += simplex;
+  newState.a = oldState.a * 0.9998;
   
   diffusionRateA += clamp(1.0 - newState.a, 0.02, 0.05) / 3.0;
   diffusionRateB -= clamp(newState.a, 0.075, 0.12) / 3.0;
 
-  killRate += (1.0 - circle(uv, vec2(0.5, 0.5), 0.45 + sin(uTime * 1.96 + simplex) * simplex)) * 0.1;
-  killRate += sin(uTime * 7.98) * 0.0015 * simplex;
-  feedRate -= cos(uTime * 2.26) * 0.00375 + (uTime / 90000.0);
+  killRate += (1.0 - circle(uv, vec2(0.5, 0.5), 0.2 + 0.17 * pow(sin(uTime * 0.15), 3.0))) * 0.1;
+  killRate += sin(uTime * 0.98) * 0.015 * simplex;
+  feedRate -= cos(uTime * 1.26) * 0.0375 * simplex2;
 
   vec3 laplace = vec3(0.0);
   int range = 1;
@@ -120,9 +121,9 @@ void main() {
 
   // Drawing
   vec2 mouse = uMouse.xy;
-  newState.r -= circle(uv, mouse, uBrush.x * 0.02) * uMouse.z * (oldState.r * 0.95) * 0.03;
-  newState.g += circle(uv, mouse, uBrush.x * 0.02) * uMouse.z * 0.02 * sin(uv.x * 3.14159);
-  newState.b += circle(uv, mouse, uBrush.x * 0.02) * uMouse.z * 0.03;
+  newState.r -= circle(uv, mouse, uBrush.x * 0.05) * uMouse.z * (oldState.r * 0.95) * 0.03;
+  newState.g += circle(uv, mouse, uBrush.x * 0.05) * uMouse.z * 0.02 * sin(uv.x * 3.14159);
+  newState.b += circle(uv, mouse, uBrush.x * 0.05) * uMouse.z * 0.03;
 
   gl_FragColor = vec4(newState.rgb, newState.a);
 }

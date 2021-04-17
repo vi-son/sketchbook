@@ -18,8 +18,8 @@ const pixelRatio = 1.0;
 const reactionDiffusionSettings = {
   diffusionRateA: 0.99,
   diffusionRateB: 0.28,
-  feedRate: 0.0421,
-  killRate: 0.059,
+  feedRate: 0.0481,
+  killRate: 0.0512,
   brushSize: 0.01,
 };
 
@@ -63,7 +63,7 @@ const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
   antialias: true,
 });
-renderer.setSize(size.height, size.height);
+renderer.setSize(size.width, size.height);
 renderer.setClearColor(0x9d9d94, 1.0);
 renderer.setPixelRatio(pixelRatio);
 
@@ -76,11 +76,9 @@ const renderTargetSize = new THREE.Vector2(
 const renderTargets = [0, 1].map(
   () =>
     new THREE.WebGLRenderTarget(renderTargetSize.x, renderTargetSize.y, {
-      // wrapS: THREE.RepeatWrapping,
-      // wrapT: THREE.RepeatWrapping,
-      // minFilter: THREE.NearestFilter,
-      // magFilter: THREE.format,
-      NearestFilter: THREE.RGBAFormat,
+      wrapS: THREE.RepeatWrapping,
+      wrapT: THREE.RepeatWrapping,
+      format: THREE.RGBAFormat,
       type: THREE.FloatType,
       stencilBuffer: false,
     })
@@ -97,8 +95,9 @@ const screenToShader = (x, y) => {
 };
 
 window.addEventListener("pointermove", (e) => {
-  // const screenX = e.clientX;
-  // const screenY = e.clientY;
+  const screenX = e.clientX;
+  const screenY = e.clientY;
+  screenToShader(screenX, screenY);
 });
 
 window.addEventListener("pointerdown", () => {
@@ -107,10 +106,6 @@ window.addEventListener("pointerdown", () => {
 
 window.addEventListener("pointerup", () => {
   mouseDown = false;
-});
-
-document.addEventListener("click", () => {
-  canvas.requestFullscreen();
 });
 
 window.addEventListener("resize", (e) => {
@@ -204,16 +199,15 @@ const renderLoop = () => {
       pingPlane.material.uniforms.uTexture.value = renderTargets[0].texture;
     }
 
-    mouseDown = true;
-    const perlin = noise.perlin2(
-      mousePosition.x * 54.3,
-      mousePosition.y * 70.0
-    );
-    const x = size.width * ((Math.sin($t * 0.3) + 1.0) / 2.0);
-    const y = size.height / 2 + perlin * (size.height / 2);
-    reactionDiffusionSettings.brushSize +=
-      perlin * 0.2 * ((Math.sin((x / size.width) * Math.PI * 2.0) + 1.0) / 2.0);
-    screenToShader(x, y);
+    // mouseDown = true;
+    // const perlin = noise.perlin2(
+    //   mousePosition.x * 54.3,
+    //   mousePosition.y * 70.0
+    // );
+    // const x = size.width * ((Math.sin($t * 0.3) + 1.0) / 2.0);
+    // const y = size.height / 2 + perlin * (size.height / 2);
+    // reactionDiffusionSettings.brushSize +=
+    //   perlin * 0.2 * ((Math.sin((x / size.width) * Math.PI * 2.0) + 1.0) / 2.0);
 
     frameCount++;
   }
