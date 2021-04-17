@@ -1,16 +1,9 @@
+import React from "react";
+import ReactDOM from "react-dom";
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
-import PoissonDiskSampling from "poisson-disk-sampling";
 
 const fftData = [];
-
-import ccapture from "ccapture.js";
-const capturer = new CCapture({
-  format: "png",
-  framerate: 60,
-  verbose: true,
-});
-let recording = false;
 
 // Shader
 const vertexShader = require("./glsl/basic.vert.glsl");
@@ -40,13 +33,8 @@ audioLoader.load(
   }
 );
 
-// capturer.start();
-// recording = true;
-
 sound.onEnded = () => {
-  // capturer.stop();
-  // capturer.save();
-  // recording = false;
+  setTimeout(() => sound.play(), 2000);
 };
 
 const spectrumSize = 128;
@@ -56,6 +44,7 @@ const stats = new Stats();
 document.body.appendChild(stats.dom);
 
 const canvas = document.querySelector("#canvas");
+console.log(canvas);
 let size = canvas.getBoundingClientRect();
 const pixelRatio = 1.0;
 
@@ -71,18 +60,18 @@ const gl = renderer.getContext();
 renderer.setSize(size.width, size.height);
 renderer.setClearColor(0x9d9d94, 1.0);
 renderer.setPixelRatio(pixelRatio);
-const renderTargetSize = new THREE.Vector2(size.width, size.height);
-const renderTargets = [0, 1].map(
+let renderTargetSize = new THREE.Vector2(size.width, size.height);
+let renderTargets = [0, 1].map(
   () =>
     new THREE.WebGLRenderTarget(renderTargetSize.x, renderTargetSize.y, {
       wrapS: THREE.RepeatWrapping,
       wrapT: THREE.RepeatWrapping,
-      // @TODO use nearest filter
       // minFilter: THREE.NearestFilter,
       // magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
       type: THREE.FloatType,
-      stencilBuffer: false,
+      stencilBuffer: true,
+      encoding: THREE.sRGBEncoding,
     })
 );
 
@@ -95,41 +84,13 @@ const camera = new THREE.OrthographicCamera(
   100
 );
 camera.add(listener);
-// const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-// camera.position.z = 3;
-// scene.add(camera);
-
-// const icoGeometry = new THREE.IcosahedronGeometry(1.0, 1);
-// const icoMaterial = new THREE.MeshBasicMaterial({ color: 0xe4871d });
-// const mesh = new THREE.Mesh(icoGeometry, icoMaterial);
-// var geo = new THREE.WireframeGeometry(mesh.planeGeometry);
-// var mat = new THREE.LineBasicMaterial({ color: 0x000000 });
-// var wireframe = new THREE.LineSegments(geo, mat);
-// mesh.add(wireframe);
-// scene.add(mesh);
-
-const mousePosition = new THREE.Vector2(0, 0);
-let mouseDown = false;
-
-window.addEventListener("pointermove", (e) => {
-  const x = +((e.clientX - size.x) / size.width) * pixelRatio;
-  const y = ((size.height - (e.clientY - size.y)) / size.height) * pixelRatio;
-  mousePosition.set(x, y);
-});
-
-window.addEventListener("pointerdown", () => {
-  mouseDown = true;
-});
-window.addEventListener("pointerup", () => {
-  mouseDown = false;
-});
 
 const planeGeometry = new THREE.PlaneGeometry(2, 2);
 
 const audioDataRenderTarget = new THREE.WebGLRenderTarget(spectrumSize / 2, 1, {
   type: THREE.FloatType,
-  wrapS: THREE.RepeatWrapping,
-  wrapT: THREE.RepeatWrapping,
+  // wrapS: THREE.RepeatWrapping,
+  // wrapT: THREE.RepeatWrapping,
   minFilter: THREE.NearestFilter,
   magFilter: THREE.NearestFilter,
 });
@@ -147,6 +108,7 @@ const audioDataMaterial = new THREE.ShaderMaterial({
   },
   vertexShader: vertexShader,
   fragmentShader: require("./glsl/audio-frequencies.frag.glsl"),
+  transparent: true,
 });
 const audioPlane = new THREE.Mesh(planeGeometry, audioDataMaterial);
 audioScene.add(audioPlane);
@@ -167,9 +129,6 @@ const feedbackMaterial = new THREE.ShaderMaterial({
     uFrame: { value: 0 },
     uTime: {
       value: 0,
-    },
-    uMouse: {
-      value: new THREE.Vector3(mousePosition.x, mousePosition.y, mouseDown),
     },
     uResolution: {
       value: renderTargetSize,
@@ -244,11 +203,6 @@ function renderLoop() {
   // Update uniforms
   feedbackMaterial.uniforms.uFrame.value = uFrameCounter;
   feedbackMaterial.uniforms.uTime.value = clock.getElapsedTime();
-  feedbackMaterial.uniforms.uMouse.value.set(
-    mousePosition.x,
-    mousePosition.y,
-    mouseDown
-  );
   feedbackMaterial.uniforms.uAudioTexture.value = audioDataRenderTarget.texture;
 
   // 1. Render off screen
@@ -270,9 +224,45 @@ function renderLoop() {
     uFrameCounter++;
   }
 
-  if (recording) capturer.capture(canvas);
-
   stats.update();
 }
 
 renderer.setAnimationLoop(renderLoop);
+
+const windowResizeListener = window.addEventListener(
+  "resize",
+  () => {
+    size = { width: window.innerWidth, height: window.innerHeight };
+    camera.aspect = size.width / size.height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(size.width, size.height);
+
+    renderTargetSize = new THREE.Vector2(size.width, size.height);
+    renderTargets = [0, 1].map(
+      () =>
+        new THREE.WebGLRenderTarget(renderTargetSize.x, renderTargetSize.y, {
+          wrapS: THREE.RepeatWrapping,
+          wrapT: THREE.RepeatWrapping,
+          // minFilter: THREE.NearestFilter,
+          // magFilter: THREE.NearestFilter,
+          format: THREE.RGBAFormat,
+          type: THREE.FloatType,
+          stencilBuffer: true,
+          encoding: THREE.sRGBEncoding,
+        })
+    );
+    feedbackMaterial.uniforms.uResolution.value = renderTargetSize;
+    feedbackMaterial.needsUpdate = true;
+  },
+  false
+);
+
+const App = () => {
+  return (
+    <div className="ui">
+      <button onClick={() => document.body.requestFullscreen()}>⬜</button>
+    </div>
+  );
+};
+
+ReactDOM.render(<App />, document.querySelector("#mount"));

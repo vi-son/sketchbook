@@ -80,7 +80,7 @@ void main() {
   // Old state
   vec2 uvs = (uv / uResolution - vec2(0.5)) * 0.993 + 0.5;
   vec4 oldState = texture2D(uTexture, uvs + (grain(uvRandom) * 0.001) - 0.0005);
-  newState.a += oldState.a * 0.973;
+  newState.a += oldState.a * 0.98;
 
   newState *= 0.96;
 
@@ -93,8 +93,8 @@ void main() {
   float t = 1.0 - (smoothstep(0.0, 1.0, d / uResolution.y));
   float smooth_circle = 1.0 - smoothstep(0.0, 0.25 * pow(audioSpectrum, 5.0), da / uResolution.y);
 
-  newState.a += (smooth_circle * audioSpectrum);
-  newState.a -= 1.0 - smoothstep(0.0, 0.05 * pow(audioSpectrum, 0.5), da / uResolution.y);
+  newState.a += clamp(smooth_circle * audioSpectrum, 0.0, 1.0);
+  newState.a -= clamp(1.0 - smoothstep(0.0, 0.05 * pow(audioSpectrum, 0.5), da / uResolution.y), 0.0, 1.0);
   newState.a = clamp(newState.a, 0.0, 1.0);
 
   // Background color
@@ -111,5 +111,5 @@ void main() {
 
   out_color.rgb += grain(uvRandom) * d / uResolution.y * 0.05;
 
-  gl_FragColor = vec4(out_color, clamp(newState.a, 0.0, 1.0));
+  gl_FragColor = vec4(out_color, newState.a);
 }

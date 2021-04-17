@@ -21,19 +21,22 @@
   "license": "MIT",
   "devDependencies": {
     "@vi.son/rouge": "^1.0.6",
-    "ccapture.js": "^1.1.0",
     "glslify-bundle": "^5.1.1",
     "glslify-deps": "^1.3.2",
     "parcel-plugin-static-files-copy": "^2.6.0",
-    "sass": "^1.32.8"
+    "sass": "^1.32.10"
   },
   "dependencies": {
     "@vi.son/components": "file:../../components",
     "blueimp-md5": "^2.18.0",
+    "dat.gui": "^0.7.7",
+    "glsl-fast-gaussian-blur": "^1.0.2",
     "matcap": "^0.0.2",
     "noisejs": "^2.1.0",
     "parcel-bundler": "^1.12.5",
     "poisson-disk-sampling": "^2.2.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "three": "^0.127.0"
   }
 }
